@@ -3,6 +3,8 @@ import resolve from 'rollup-plugin-node-resolve';
 import buble from 'rollup-plugin-buble';
 import { uglify } from "rollup-plugin-uglify";
 
+const pkg  = require('./package.json');
+
 function getConfigOptions({
   entry,
   dest,
@@ -14,7 +16,17 @@ function getConfigOptions({
       buble(),
   ];
   if (env === 'production') {
-    plugins.push(uglify());
+    plugins.push(uglify({
+      output: {
+        comments: function (node, comment) {
+          if (comment.type === "comment2") {
+            // multiline comment
+            return /@version/i.test(comment.value);
+          }
+          return false;
+        }
+      }
+    }));
   }
   return {
     input: entry,
@@ -24,6 +36,11 @@ function getConfigOptions({
       globals: {
         jquery: 'jQuery',
       },
+      banner: `
+/**
+@version ${pkg.version}
+*/
+      `,
     },
     external: [
       'jquery',
