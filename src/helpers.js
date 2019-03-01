@@ -130,14 +130,3 @@ export function calculateAxis(start, end, defaultAxis) {
 
   return defaultAxis;
 }
-
-export function queueSnap(queue, type, distance, cb, ...args) {
-  if (!queue[type] || queue[type].distance > distance) {
-    queue[type] = {
-      distance,
-      cb,
-      args,
-      snap: true,
-    };
-  }
-}

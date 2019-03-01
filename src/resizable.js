@@ -1,6 +1,9 @@
 import $ from 'jquery';
 
-import { pushRefLines, getMargins, queueSnap } from './helpers';
+import RefLineCanvas from './RefLineCanvas';
+import SnapQueue from './SnapQueue';
+
+import { pushRefLines, getMargins } from './helpers';
 
 function includes(array, value) {
   return array.indexOf(value) !== -1;
@@ -9,37 +12,15 @@ function includes(array, value) {
 $.ui.plugin.add('resizable', 'snapRef', {
   start() {
     const inst = $(this).resizable('instance');
-    const { options: { snapRef, snapRefLineColor = 'red' } = {} } = inst;
-    if (!snapRef) {
-      return;
-    }
+    const { options: { snapRef, snapRefLineColor = 'red',  snapCanvasZIndex = 100001 } = {} } = inst;
 
     inst.snapRefElements = [];
-    const $parent = this.parent();
-    const $canvas = $('<canvas />').attr({
-      width: $parent.width(),
-      height: $parent.height(),
-    }).css({
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      zIndex: 10001,
-      'pointer-events': 'none',
-    });
-
-    [inst.canvas] = $canvas;
-    $parent.append(inst.canvas);
-
-    const ctx = inst.canvas.getContext('2d');
-
-    inst.refLineContext = ctx;
-    ctx.strokeStyle = snapRefLineColor;
+    inst.refLineCanvas = new RefLineCanvas(this.parent(), {
+      lineColor:  snapRefLineColor,
+      zIndex: snapCanvasZIndex,
+    })
 
     inst.margins = getMargins(inst.element);
-    inst.helperProportions = {
-      width: inst.element.outerWidth(),
-      height: inst.element.outerHeight(),
-    };
 
     $(snapRef.constructor !== String ? (snapRef.items || ':data(ui-draggable)') : snapRef)
       .each(function cb() {
@@ -75,7 +56,7 @@ $.ui.plugin.add('resizable', 'snapRef', {
     const y1c = y1 + Math.round(ui.size.height / 2);
 
     const lines = [];
-    const changeQueue = [];
+    const snapQueue = new SnapQueue();
 
     for (let i = inst.snapRefElements.length - 1; i >= 0; i -= 1) {
       const element = inst.snapRefElements[i];
@@ -121,14 +102,14 @@ $.ui.plugin.add('resizable', 'snapRef', {
       if (tcs && atc <= d) {
         // 向下拖动 居中对齐
         if (includes(['sw', 's', 'se'], axis) && tc > y1c) {
-          queueSnap(changeQueue, 'tcs', atc, (a) => {
+          snapQueue.push('tcs', atc, (a) => {
             inst.size.height = (a - y1) * 2;
           }, tc);
         }
 
         // 向下拖动 居中对齐
         if (includes(['nw', 'n', 'ne'], axis) && tc < y1c) {
-          queueSnap(changeQueue, 'tcs', atc, (a) => {
+          snapQueue.push('tcs', atc, (a) => {
             inst.size.height = (y2 - a) * 2;
             inst.position.top = y2 - inst.size.height;
           }, tc);
@@ -138,7 +119,7 @@ $.ui.plugin.add('resizable', 'snapRef', {
       if (lcs && alc <= d) {
         // 向左拖动 居中对齐
         if (includes(['nw', 'w', 'sw'], axis) && lc < x1c) {
-          queueSnap(changeQueue, 'lcs', alc, (a) => {
+          snapQueue.push('lcs', alc, (a) => {
             inst.size.width = (x2 - a) * 2;
             inst.position.left = x2 - inst.size.width;
           }, lc);
@@ -146,7 +127,7 @@ $.ui.plugin.add('resizable', 'snapRef', {
 
         // 向右拖动 居中对齐
         if (includes(['ne', 'e', 'se'], axis) && lc > x1c) {
-          queueSnap(changeQueue, 'lcs', alc, (a) => {
+          snapQueue.push('lcs', alc, (a) => {
             inst.size.width = (a - x1) * 2;
           }, lc);
         }
@@ -181,14 +162,14 @@ $.ui.plugin.add('resizable', 'snapRef', {
 
         // 外部向下贴附
         if (ts && at <= d) {
-          queueSnap(changeQueue, 'ts', at, (a) => {
+          snapQueue.push('ts', at, (a) => {
             inst.size.height = a - y1;
           }, t);
         }
 
         // 外部向上贴附
         if (bs && ab <= d) {
-          queueSnap(changeQueue, 'bs', ab, (a) => {
+          snapQueue.push('bs', ab, (a) => {
             inst.size.height = y2 - a;
             inst.position.top = y2 - inst.size.height;
           }, b);
@@ -196,14 +177,14 @@ $.ui.plugin.add('resizable', 'snapRef', {
 
         // 外部向右贴附
         if (ls && al <= d) {
-          queueSnap(changeQueue, 'ls', al, (a) => {
+          snapQueue.push('ls', al, (a) => {
             inst.size.width = a - x1;
           }, l);
         }
 
         // 外部向左贴附
         if (rs && ar <= d) {
-          queueSnap(changeQueue, 'rs', al, (a) => {
+          snapQueue.push('rs', ar, (a) => {
             inst.size.width = x2 - a;
             inst.position.left = x2 - inst.size.width;
           }, r);
@@ -244,7 +225,7 @@ $.ui.plugin.add('resizable', 'snapRef', {
 
         // 内部向上贴附
         if (ts && at <= d) {
-          queueSnap(changeQueue, 'ts2', at, (a) => {
+          snapQueue.push('ts2', at, (a) => {
             inst.size.height = y2 - a;
             inst.position.top = y2 - inst.size.height;
           }, t);
@@ -252,14 +233,14 @@ $.ui.plugin.add('resizable', 'snapRef', {
 
         // 内部向下贴附
         if (bs && ab <= d) {
-          queueSnap(changeQueue, 'bs2', ab, (a) => {
+          snapQueue.push('bs2', ab, (a) => {
             inst.size.height = a - y1;
           }, b);
         }
 
         // 内部向左贴附
         if (ls && al <= d) {
-          queueSnap(changeQueue, 'ls2', ab, (a) => {
+          snapQueue.push('ls2', ab, (a) => {
             inst.size.width = x2 - a;
             inst.position.left = x2 - inst.size.width;
           }, l);
@@ -267,40 +248,33 @@ $.ui.plugin.add('resizable', 'snapRef', {
 
         // 内部向右贴附
         if (rs && ar <= d) {
-          queueSnap(changeQueue, 'rs2', ab, (a) => {
+          snapQueue.push('rs2', ar, (a) => {
             inst.size.width = a - x1;
           }, r);
         }
       }
 
-      Object.keys(changeQueue).forEach((key) => {
-        const item = changeQueue[key];
-        item.cb(...item.args);
-      });
+      snapQueue.execute();
 
-      const ctx = inst.refLineContext;
-      ctx.clearRect(0, 0, inst.canvas.width, inst.canvas.height);
-      ctx.beginPath();
-
-      lines.forEach((line) => {
+      inst.refLineCanvas.draw(lines.map(line => {
         const [start, end, margins_] = line;
-        ctx.moveTo(
-          start.x + margins_.left,
-          start.y + margins_.top
-        );
-        ctx.lineTo(
-          end.x + margins_.left,
-          end.y + margins_.top
-        );
-      });
-      ctx.stroke();
+        return [
+          {
+            x: start.x + margins_.left,
+            y: start.y + margins_.top,
+          },
+          {
+            x: end.x + margins_.left,
+            y: end.y + margins_.top,
+          }
+        ]
+      }));
     }
   },
 
   stop() {
     const inst = $(this).resizable('instance');
-    delete inst.refLineContext;
-    $(inst.canvas).remove();
-    delete inst.canvas;
+    inst.refLineCanvas.destroy();
+    delete inst.refLineCanvas;
   },
 });

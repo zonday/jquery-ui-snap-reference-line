@@ -11,6 +11,80 @@
 
   $ = $ && $.hasOwnProperty('default') ? $['default'] : $;
 
+  var RefLineCanvas = function RefLineCanvas($container, options) {
+    if ( options === void 0 ) options = {};
+
+    options = $.extend({
+      lineColor: 'red',
+      zIndex: 10001,
+    }, options);
+
+    this.$container = $container;
+    this.$container.css('position', 'relative');
+    this.$canvas = $('<canvas class="ui-ref-line-canvas" />');
+    this.$canvas.attr({
+      width: $container.width(),
+      height: $container.height(),
+    });
+    this.$canvas.css({
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: options.zIndex,
+      'pointer-events': 'none',
+    });
+    this.$container.append(this.$canvas);
+
+    this.ctx = this.$canvas[0].getContext('2d');
+    this.ctx.strokeStyle = options.lineColor;
+  };
+
+  RefLineCanvas.prototype.draw = function draw (lines) {
+      var this$1 = this;
+
+    this.ctx.clearRect(0, 0, this.$canvas[0].width, this.$canvas[0].height);
+    this.ctx.beginPath();
+    lines.forEach(function (line) {
+      var start = line[0];
+        var end = line[1];
+      this$1.ctx.moveTo(start.x, start.y);
+      this$1.ctx.lineTo(end.x, end.y);
+    });
+    this.ctx.stroke();
+  };
+
+  RefLineCanvas.prototype.destroy = function destroy () {
+    this.$canvas.remove();
+  };
+
+  var SnapQueue = function SnapQueue() {
+    this.queue = {};
+  };
+
+  SnapQueue.prototype.push = function push (type, distance, cb) {
+      var args = [], len = arguments.length - 3;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 3 ];
+
+    if (!this.queue[type] || this.queue[type].distance > distance) {
+      this.queue[type] = {
+        distance: distance,
+        cb: cb,
+        args: args,
+      };
+    }
+  };
+
+  SnapQueue.prototype.execute = function execute () {
+      var this$1 = this;
+
+    Object.keys(this.queue).forEach(function (type) {
+      var item = this$1.queue[type];
+      item.cb.apply(item, item.args);
+    });
+  };
+
   function makeRefLine(type, ref) {
     var tc = ref.tc;
     var lc = ref.lc;
@@ -115,55 +189,19 @@
     };
   }
 
-  function queueSnap(queue, type, distance, cb) {
-    var args = [], len = arguments.length - 4;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 4 ];
-
-    if (!queue[type] || queue[type].distance > distance) {
-      queue[type] = {
-        distance: distance,
-        cb: cb,
-        args: args,
-        snap: true,
-      };
-    }
-  }
-
   $.ui.plugin.add('draggable', 'snapRef', {
     start: function start(event, ui, inst) {
-      var assign;
-
       var inst_options = inst.options; if ( inst_options === void 0 ) inst_options = {};
       var inst_options$1 = inst_options;
       var snapRef = inst_options$1.snapRef;
       var snapRefLineColor = inst_options$1.snapRefLineColor; if ( snapRefLineColor === void 0 ) snapRefLineColor = 'red';
       var snapCanvasZIndex = inst_options$1.snapCanvasZIndex; if ( snapCanvasZIndex === void 0 ) snapCanvasZIndex = 10001;
-      if (!snapRef) {
-        return;
-      }
 
       inst.snapRefElements = [];
-
-      var $parent = this.parent();
-      var $canvas = $('<canvas />').attr({
-        width: $parent.width(),
-        height: $parent.height(),
-      }).addClass('ui-snap-ref-canvas')
-      .css({
-        position: 'absolute',
-        top: 0,
-        left: 0,
+      inst.refLineCanvas = new RefLineCanvas(this.parent(), {
+        lineColor:  snapRefLineColor,
         zIndex: snapCanvasZIndex,
-        'pointer-events': 'none',
       });
-
-      (assign = $canvas, inst.canvas = assign[0]);
-      $parent.append(inst.canvas);
-
-      var ctx = inst.canvas.getContext('2d');
-
-      inst.refLineContext = ctx;
-      ctx.strokeStyle = snapRefLineColor;
 
       $(snapRef.constructor !== String ? (snapRef.items || ':data(ui-draggable)') : snapRef)
         .each(function cb() {
@@ -199,7 +237,7 @@
       var y1c = y1 + Math.round(inst.helperProportions.height / 2);
 
       var lines = [];
-      var changeQueue = {};
+      var snapQueue = new SnapQueue();
 
       for (var i = inst.snapRefElements.length - 1; i >= 0; i -= 1) {
         var element = inst.snapRefElements[i];
@@ -211,29 +249,6 @@
         var lc = l + Math.round(element.width / 2);
 
         var snapMargins = element.margins;
-
-        /*
-        if (x2 < l - refD
-          || x1 > r + refD
-          || y2 < t - refD
-          || y1 > b + refD
-          || !$.contains(
-            inst.snapRefElements[i].item.ownerDocument,
-            inst.snapRefElements[i].item,
-          )) {
-          if (inst.snapRefElements[i].snapping) {
-            if (inst.options.snapRef.release) {
-              inst.options.snapRef.release.call(
-                inst.element,
-                event,
-                $.extend(inst._uiHash(), { snapItem: inst.snapRefElements[i].item }),
-              );
-            }
-          }
-          inst.snapRefElements[i].snapping = false;
-          continue;
-        }
-        */
 
         var ts = (void 0);
         var bs = (void 0);
@@ -259,7 +274,7 @@
         pushRefLines(lines, { tcs: tcs, lcs: lcs }, args);
 
         if (tcs && atc <= d) {
-          queueSnap(changeQueue, 'tcs', atc, function (a) {
+          snapQueue.push('tcs', atc, function (a) {
             ui.position.top = inst._convertPositionTo('relative', {
               top: a - Math.round(inst.helperProportions.height / 2),
               left: 0,
@@ -268,7 +283,7 @@
         }
 
         if (lcs && alc <= d) {
-          queueSnap(changeQueue, 'lcs', alc, function (a) {
+          snapQueue.push('lcs', alc, function (a) {
             ui.position.left = inst._convertPositionTo('relative', {
               top: 0,
               left: a - Math.round(inst.helperProportions.width / 2),
@@ -297,7 +312,7 @@
 
           // 小于吸附距离
           if (ts && at <= d) {
-            queueSnap(changeQueue, 'ts', at, function (a) {
+            snapQueue.push('ts', at, function (a) {
               ui.position.top = inst._convertPositionTo('relative', {
                 top: a - inst.helperProportions.height,
                 left: 0,
@@ -306,7 +321,7 @@
           }
 
           if (bs && ab <= d) {
-            queueSnap(changeQueue, 'bs', ab, function (a) {
+            snapQueue.push('bs', ab, function (a) {
               ui.position.top = inst._convertPositionTo('relative', {
                 top: a,
                 left: 0,
@@ -315,7 +330,7 @@
           }
 
           if (ls && al <= d) {
-            queueSnap(changeQueue, 'ls', al, function (a) {
+            snapQueue.push('ls', al, function (a) {
               ui.position.left = inst._convertPositionTo('relative', {
                 top: 0,
                 left: a - inst.helperProportions.width,
@@ -324,7 +339,7 @@
           }
 
           if (rs && ar <= d) {
-            queueSnap(changeQueue, 'rs', ar, function (a) {
+            snapQueue.push('rs', ar, function (a) {
               ui.position.left = inst._convertPositionTo('relative', {
                 top: 0,
                 left: a,
@@ -332,8 +347,6 @@
             }, r);
           }
         }
-
-        // const first = (ts || bs || ls || rs);
 
         if (options.snapRefMode !== 'outer') {
           at = Math.abs(t - y1);
@@ -355,7 +368,7 @@
           }, args);
 
           if (ts && at <= d) {
-            queueSnap(changeQueue, 'ts2', at, function (a) {
+            snapQueue.push('ts2', at, function (a) {
               ui.position.top = inst._convertPositionTo('relative', {
                 top: a,
                 left: 0,
@@ -364,7 +377,7 @@
           }
 
           if (bs && ab <= d) {
-            queueSnap(changeQueue, 'bs2', ab, function (a) {
+            snapQueue.push('bs2', ab, function (a) {
               ui.position.top = inst._convertPositionTo('relative', {
                 top: a - inst.helperProportions.height,
                 left: 0,
@@ -373,7 +386,7 @@
           }
 
           if (ls && al <= d) {
-            queueSnap(changeQueue, 'ls2', al, function (a) {
+            snapQueue.push('ls2', al, function (a) {
               ui.position.left = inst._convertPositionTo('relative', {
                 top: 0,
                 left: a,
@@ -382,7 +395,7 @@
           }
 
           if (rs && ar <= d) {
-            queueSnap(changeQueue, 'rs2', ar, function (a) {
+            snapQueue.push('rs2', ar, function (a) {
               ui.position.left = inst._convertPositionTo('relative', {
                 top: 0,
                 left: a - inst.helperProportions.width,
@@ -390,55 +403,33 @@
             }, r);
           }
         }
-
-        /*
-        if (!inst.snapRefElements[i].snapping && (ts || bs || ls || rs || first)) {
-          if (inst.options.snapRef.snap) {
-            inst.options.snapRef.snap.call(
-              inst.element,
-              event,
-              $.extend(inst._uiHash(), {
-                snapItem: inst.snapRefElements[i].item,
-              }),
-            );
-          }
-        }
-
-        inst.snapRefElements[i].snapping = (ts || bs || ls || rs || first);
-        */
       }
 
-      Object.keys(changeQueue).forEach(function (key) {
-        var item = changeQueue[key];
-        item.cb.apply(item, item.args);
-      });
+      snapQueue.execute();
 
-      var ctx = inst.refLineContext;
-      var offsetParent = inst.offset.parent;
-      ctx.clearRect(0, 0, inst.canvas.width, inst.canvas.height);
-      ctx.beginPath();
-
-      lines.forEach(function (line) {
+      var ref = inst.offset.parent;
+      var offsetParentLeft = ref.left;
+      var offsetParentTop = ref.top;
+      inst.refLineCanvas.draw(lines.map(function (line) {
         var start = line[0];
         var end = line[1];
         var margins_ = line[2];
-        ctx.moveTo(
-          start.x + margins_.left - offsetParent.left,
-          start.y + margins_.top - offsetParent.top
-        );
-        ctx.lineTo(
-          end.x + margins_.left - offsetParent.left,
-          end.y + margins_.top - offsetParent.top
-        );
-      });
-
-      ctx.stroke();
+        return [
+          {
+            x: start.x + margins_.left - offsetParentLeft,
+            y: start.y + margins_.top - offsetParentTop,
+          },
+          {
+            x: end.x + margins_.left - offsetParentLeft,
+            y: end.y + margins_.top - offsetParentTop,
+          }
+        ]
+      }));
     },
 
     stop: function stop(event, ui, inst) {
-      delete inst.refLineContext;
-      $(inst.canvas).remove();
-      delete inst.canvas;
+      inst.refLineCanvas.destroy();
+      delete inst.refLineCanvas;
     },
   });
 
@@ -448,43 +439,20 @@
 
   $.ui.plugin.add('resizable', 'snapRef', {
     start: function start() {
-      var assign;
-
       var inst = $(this).resizable('instance');
       var inst_options = inst.options; if ( inst_options === void 0 ) inst_options = {};
       var inst_options$1 = inst_options;
       var snapRef = inst_options$1.snapRef;
       var snapRefLineColor = inst_options$1.snapRefLineColor; if ( snapRefLineColor === void 0 ) snapRefLineColor = 'red';
-      if (!snapRef) {
-        return;
-      }
+      var snapCanvasZIndex = inst_options$1.snapCanvasZIndex; if ( snapCanvasZIndex === void 0 ) snapCanvasZIndex = 100001;
 
       inst.snapRefElements = [];
-      var $parent = this.parent();
-      var $canvas = $('<canvas />').attr({
-        width: $parent.width(),
-        height: $parent.height(),
-      }).css({
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        zIndex: 10001,
-        'pointer-events': 'none',
+      inst.refLineCanvas = new RefLineCanvas(this.parent(), {
+        lineColor:  snapRefLineColor,
+        zIndex: snapCanvasZIndex,
       });
 
-      (assign = $canvas, inst.canvas = assign[0]);
-      $parent.append(inst.canvas);
-
-      var ctx = inst.canvas.getContext('2d');
-
-      inst.refLineContext = ctx;
-      ctx.strokeStyle = snapRefLineColor;
-
       inst.margins = getMargins(inst.element);
-      inst.helperProportions = {
-        width: inst.element.outerWidth(),
-        height: inst.element.outerHeight(),
-      };
 
       $(snapRef.constructor !== String ? (snapRef.items || ':data(ui-draggable)') : snapRef)
         .each(function cb() {
@@ -522,9 +490,9 @@
       var y1c = y1 + Math.round(ui.size.height / 2);
 
       var lines = [];
-      var changeQueue = [];
+      var snapQueue = new SnapQueue();
 
-      var loop = function ( i ) {
+      for (var i = inst.snapRefElements.length - 1; i >= 0; i -= 1) {
         var element = inst.snapRefElements[i];
         var l = element.left - margins.left;
         var r = l + element.width;
@@ -568,14 +536,14 @@
         if (tcs && atc <= d) {
           // 向下拖动 居中对齐
           if (includes(['sw', 's', 'se'], axis) && tc > y1c) {
-            queueSnap(changeQueue, 'tcs', atc, function (a) {
+            snapQueue.push('tcs', atc, function (a) {
               inst.size.height = (a - y1) * 2;
             }, tc);
           }
 
           // 向下拖动 居中对齐
           if (includes(['nw', 'n', 'ne'], axis) && tc < y1c) {
-            queueSnap(changeQueue, 'tcs', atc, function (a) {
+            snapQueue.push('tcs', atc, function (a) {
               inst.size.height = (y2 - a) * 2;
               inst.position.top = y2 - inst.size.height;
             }, tc);
@@ -585,7 +553,7 @@
         if (lcs && alc <= d) {
           // 向左拖动 居中对齐
           if (includes(['nw', 'w', 'sw'], axis) && lc < x1c) {
-            queueSnap(changeQueue, 'lcs', alc, function (a) {
+            snapQueue.push('lcs', alc, function (a) {
               inst.size.width = (x2 - a) * 2;
               inst.position.left = x2 - inst.size.width;
             }, lc);
@@ -593,7 +561,7 @@
 
           // 向右拖动 居中对齐
           if (includes(['ne', 'e', 'se'], axis) && lc > x1c) {
-            queueSnap(changeQueue, 'lcs', alc, function (a) {
+            snapQueue.push('lcs', alc, function (a) {
               inst.size.width = (a - x1) * 2;
             }, lc);
           }
@@ -628,14 +596,14 @@
 
           // 外部向下贴附
           if (ts && at <= d) {
-            queueSnap(changeQueue, 'ts', at, function (a) {
+            snapQueue.push('ts', at, function (a) {
               inst.size.height = a - y1;
             }, t);
           }
 
           // 外部向上贴附
           if (bs && ab <= d) {
-            queueSnap(changeQueue, 'bs', ab, function (a) {
+            snapQueue.push('bs', ab, function (a) {
               inst.size.height = y2 - a;
               inst.position.top = y2 - inst.size.height;
             }, b);
@@ -643,14 +611,14 @@
 
           // 外部向右贴附
           if (ls && al <= d) {
-            queueSnap(changeQueue, 'ls', al, function (a) {
+            snapQueue.push('ls', al, function (a) {
               inst.size.width = a - x1;
             }, l);
           }
 
           // 外部向左贴附
           if (rs && ar <= d) {
-            queueSnap(changeQueue, 'rs', al, function (a) {
+            snapQueue.push('rs', ar, function (a) {
               inst.size.width = x2 - a;
               inst.position.left = x2 - inst.size.width;
             }, r);
@@ -691,7 +659,7 @@
 
           // 内部向上贴附
           if (ts && at <= d) {
-            queueSnap(changeQueue, 'ts2', at, function (a) {
+            snapQueue.push('ts2', at, function (a) {
               inst.size.height = y2 - a;
               inst.position.top = y2 - inst.size.height;
             }, t);
@@ -699,14 +667,14 @@
 
           // 内部向下贴附
           if (bs && ab <= d) {
-            queueSnap(changeQueue, 'bs2', ab, function (a) {
+            snapQueue.push('bs2', ab, function (a) {
               inst.size.height = a - y1;
             }, b);
           }
 
           // 内部向左贴附
           if (ls && al <= d) {
-            queueSnap(changeQueue, 'ls2', ab, function (a) {
+            snapQueue.push('ls2', ab, function (a) {
               inst.size.width = x2 - a;
               inst.position.left = x2 - inst.size.width;
             }, l);
@@ -714,45 +682,36 @@
 
           // 内部向右贴附
           if (rs && ar <= d) {
-            queueSnap(changeQueue, 'rs2', ab, function (a) {
+            snapQueue.push('rs2', ar, function (a) {
               inst.size.width = a - x1;
             }, r);
           }
         }
 
-        Object.keys(changeQueue).forEach(function (key) {
-          var item = changeQueue[key];
-          item.cb.apply(item, item.args);
-        });
+        snapQueue.execute();
 
-        var ctx = inst.refLineContext;
-        ctx.clearRect(0, 0, inst.canvas.width, inst.canvas.height);
-        ctx.beginPath();
-
-        lines.forEach(function (line) {
+        inst.refLineCanvas.draw(lines.map(function (line) {
           var start = line[0];
           var end = line[1];
           var margins_ = line[2];
-          ctx.moveTo(
-            start.x + margins_.left,
-            start.y + margins_.top
-          );
-          ctx.lineTo(
-            end.x + margins_.left,
-            end.y + margins_.top
-          );
-        });
-        ctx.stroke();
-      };
-
-      for (var i = inst.snapRefElements.length - 1; i >= 0; i -= 1) loop( i );
+          return [
+            {
+              x: start.x + margins_.left,
+              y: start.y + margins_.top,
+            },
+            {
+              x: end.x + margins_.left,
+              y: end.y + margins_.top,
+            }
+          ]
+        }));
+      }
     },
 
     stop: function stop() {
       var inst = $(this).resizable('instance');
-      delete inst.refLineContext;
-      $(inst.canvas).remove();
-      delete inst.canvas;
+      inst.refLineCanvas.destroy();
+      delete inst.refLineCanvas;
     },
   });
 
