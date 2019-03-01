@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>jquery 拖动 参考线 自动吸附</title>
+    <link rel="stylesheet" href="//cdn.bootcss.com/jqueryui/1.12.1/jquery-ui.css">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .box {
+            width: 200px;
+            height: 200px;
+            position: absolute;
+            background: #ccc;
+        }
+    </style>
+    <script src="//cdn.bootcss.com/jquery/1.12.4/jquery.js"></script>
+    <script src="//cdn.bootcss.com/jqueryui/1.12.1/jquery-ui.js"></script>
+    <script src="../dist/jquery-ui-snap-ref-line.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="box" style="top: 0; left:0">1</div>
+        <div class="box" style="top: 200px; left:200px">2</div>
+        <div class="box" style="top: 400px; left:400px">3</div>
+    </div>
+    <script>
+        $('.box').draggable({
+            snapRef: true, // 开启参考线
+            snapRefLineColor: 'green', //参考线颜色
+            snapRefRefTolerance: 30, // 参考线的出现距离
+            snapTolerance: 20, // 吸附距离
+            stop: function (event, ui) {
+                console.log(ui);
+            }
+        });
+        $('.box').resizable({
+            handles: 'all',
+            snapRef: true, // 开启参考线
+            snapRefRefTolerance: 30, // 参考线的出现距离
+            snapTolerance: 20, // 吸附距离
+            stop: function(event, ui) {
+                console.log(ui);
+            }
+        });
+    </script>
+</body>
+
+</html>
