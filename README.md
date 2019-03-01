@@ -15,7 +15,7 @@
     $('.box').draggable({
         snapRef: true, // 开启参考线
         snapRefLineColor: 'green', //参考线颜色
-        snapRefRefTolerance: 30, // 参考线的出现距离
+        snapRefTolerance: 30, // 参考线的出现距离
         snapTolerance: 20, // 吸附距离
         stop: function (event, ui) {
             console.log(ui);
@@ -24,7 +24,7 @@
     $('.box').resizable({
         handles: 'all',
         snapRef: true, // 开启参考线
-        snapRefRefTolerance: 30, // 参考线的出现距离
+        snapRefTolerance: 30, // 参考线的出现距离
         snapTolerance: 20, // 吸附距离
         stop: function(event, ui) {
             console.log(ui);
