@@ -38,7 +38,7 @@ function getConfigOptions({
       },
       banner: `
 /**
-@version ${pkg.version}
+@version ${pkg.version}${env!== 'production' ? '-dev' : ''}
 */
       `,
     },
