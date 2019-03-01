@@ -1,6 +1,6 @@
 
 /**
-@version 1.0.3
+@version 1.0.4-dev
 */
       
 (function (global, factory) {
@@ -706,7 +706,7 @@
 
           // 内部向左贴附
           if (ls && al <= d) {
-            queueSnap(changeQueue, 'ls2', ab, function (a) {
+            queueSnap(changeQueue, 'ls2', al, function (a) {
               inst.size.width = x2 - a;
               inst.position.left = x2 - inst.size.width;
             }, l);
@@ -714,7 +714,7 @@
 
           // 内部向右贴附
           if (rs && ar <= d) {
-            queueSnap(changeQueue, 'rs2', ab, function (a) {
+            queueSnap(changeQueue, 'rs2', ar, function (a) {
               inst.size.width = a - x1;
             }, r);
           }
