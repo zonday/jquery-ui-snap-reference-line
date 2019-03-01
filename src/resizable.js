@@ -259,7 +259,7 @@ $.ui.plugin.add('resizable', 'snapRef', {
 
         // 内部向左贴附
         if (ls && al <= d) {
-          queueSnap(changeQueue, 'ls2', ab, (a) => {
+          queueSnap(changeQueue, 'ls2', al, (a) => {
             inst.size.width = x2 - a;
             inst.position.left = x2 - inst.size.width;
           }, l);
@@ -267,7 +267,7 @@ $.ui.plugin.add('resizable', 'snapRef', {
 
         // 内部向右贴附
         if (rs && ar <= d) {
-          queueSnap(changeQueue, 'rs2', ab, (a) => {
+          queueSnap(changeQueue, 'rs2', ar, (a) => {
             inst.size.width = a - x1;
           }, r);
         }
