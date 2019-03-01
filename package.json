@@ -2,7 +2,7 @@
   "name": "@zonda/jquery-ui-snap-reference-line",
   "version": "1.0.1",
   "description": "Jquery ui snap reference line",
-  "main": "src/index.js",
+  "main": "dist/jquery-ui-snap-ref-line.js",
   "scripts": {
     "dev": "rollup -w -c --environment TARGET:dev",
     "build": "rollup -c"
