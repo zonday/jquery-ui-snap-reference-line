@@ -58,6 +58,7 @@ $.ui.plugin.add('resizable', 'snapRef', {
     const lines = [];
     const snapQueue = new SnapQueue();
 
+
     for (let i = inst.snapRefElements.length - 1; i >= 0; i -= 1) {
       const element = inst.snapRefElements[i];
       const l = element.left - margins.left;

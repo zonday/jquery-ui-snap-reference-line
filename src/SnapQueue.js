@@ -16,6 +16,7 @@ export default class SnapQueue {
   execute() {
     Object.keys(this.queue).forEach((type) => {
       const item = this.queue[type];
+      console.log(type);
       item.cb(...item.args);
     });
   }

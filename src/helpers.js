@@ -130,3 +130,42 @@ export function calculateAxis(start, end, defaultAxis) {
 
   return defaultAxis;
 }
+
+export function calculateAlignment(distanceMap, tolerance, predicate = (a, b) => a <= b) {
+  const result = {};
+  Object.keys(distanceMap).forEach((key) => {
+    result[key] = predicate.call(this, distanceMap[key], tolerance);
+  });
+  return result;
+}
+
+export function calculateDistance(source, target, mode) {
+  const result = {};
+  result.center = {
+    horizontal: target.horizontal - source.horizontal, // 居中水平
+    vertical: target.vertical - source.vertical, // 居中垂直
+  };
+
+  if (mode !== 'inner') {
+    result.outer = {
+      top: target.top - source.bottom, // 上
+      bottom: target.bottom - source.top, // 下
+      left: target.left - source.right, // 左
+      right: target.right - source.left, // 右
+    };
+  }
+  if (this.mode !== 'outer') {
+    result.inner = {
+      top: target.top - source.top, // 上
+      bottom: target.bottom - source.bottom, // 下
+      left: target.left - source.left, // 左
+      right: target.right - source.right, // 右
+    };
+  }
+
+  return result;
+}
+
+export function toNum(a) {
+  return parseInt(a, 10) || 0;
+}
