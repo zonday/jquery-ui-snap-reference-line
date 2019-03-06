@@ -59,11 +59,11 @@ const builds = {
     dest: './dist/jquery-ui-snap-ref-line.min.js',
     env: 'production',
   }
-}
+};
 
 let options;
 if (process.env.TARGET && builds[process.env.TARGET]) {
-  options = getConfigOptions(builds[process.env.TARGET]); 
+  options = getConfigOptions(builds[process.env.TARGET]);
 } else {
   options = Object.keys(builds).map((key) => getConfigOptions(builds[key]));
 }
