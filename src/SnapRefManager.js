@@ -1,3 +1,4 @@
+import { includes } from './helpers';
 import SnapQueue from "./SnapQueue";
 
 export default class SnapRefManager {
@@ -7,24 +8,24 @@ export default class SnapRefManager {
     this.options = options;
   }
 
-  snap(ui, source) {
+  snap(ui, source, axis) {
     const refLines = [];
     const snapQueue = new SnapQueue();
     this.elements.forEach((target) => {
       const distanceResult = this.calculateDistance(source, target);
-      Object.keys(distanceResult).forEach((key) => {
-        const tolerance = this.calculateTolerance(distanceResult[key]);
-        Object.keys(tolerance).forEach((type) => {
-          const item = tolerance[type];
+      Object.keys(distanceResult).forEach((type) => {
+        const tolerance = this.calculateTolerance(distanceResult[type], type, axis);
+        Object.keys(tolerance).forEach((name) => {
+          const item = tolerance[name];
           if (item.ref) {
-            refLines.push(this.makeRefLine(type, source, target));
+            refLines.push(this.makeRefLine(name, source, target));
           }
-          if (item.snap && this.snapCallbacks[key]) {
-            const callback = this.snapCallbacks[key][type];
+          if (item.snap && this.snapCallbacks[type]) {
+            const callback = this.snapCallbacks[type][name];
             if (callback) {
-              snapQueue.push(`${key}${type}`, item.distance, (...args) => {
+              snapQueue.push(`${type}${name}`, item.distance, (...args) => {
                 callback(ui, ...args);
-              }, source, target);
+              }, source, target, axis);
             }
           }
         });
@@ -34,8 +35,8 @@ export default class SnapRefManager {
     return refLines;
   }
 
-  makeRefLine(type, source, target) {
-    switch (type) {
+  makeRefLine(name, source, target) {
+    switch (name) {
       case 'vertical':
         return [
           {
@@ -106,20 +107,59 @@ export default class SnapRefManager {
     }
   }
 
-  calculateTolerance(distanceMap) {
+  calculateTolerance(distanceMap, type, axis) {
     const result = {};
     Object.keys(distanceMap).forEach((name) => {
       const distance = Math.abs(distanceMap[name]);
+      let pass = true;
+      if (axis) {
+        switch (name) {
+          case 'horizontal':
+            pass = includes(['nw', 'w', 'sw', 'ne', 'e', 'se'], axis);
+            break;
+          case 'vertical':
+            pass = includes(['nw', 'n', 'ne', 'sw', 's', 'se'], axis);
+            break;
+          case 'top':
+            if (type === 'outer') {
+              pass = includes(['sw', 's', 'se'], axis);
+            } else if (type === 'inner') {
+              pass = includes(['nw', 'n', 'ne'], axis);
+            }
+            break;
+          case 'bottom':
+            if (type === 'outer') {
+              pass = includes(['nw', 'n', 'ne'], axis);
+            } else if (type === 'inner') {
+              pass = includes(['sw', 's', 'se'], axis);
+            }
+            break;
+          case 'left':
+            if (type === 'outer') {
+              pass = includes(['ne', 'e', 'se'], axis);
+            } else if (type === 'inner') {
+              pass = includes(['nw', 'w', 'sw'], axis);
+            }
+            break;
+          case 'right':
+            if (type === 'outer') {
+              pass = includes(['nw', 'w', 'sw'], axis);
+            } else if (type === 'inner') {
+              pass = includes(['ne', 'e', 'se'], axis);
+            }
+            break;
+        }
+      }
       result[name] = {
         distance,
-        snap: distance <= this.options.snapTolerance,
-        ref: distance <= this.options.snapRefTolerance,
+        snap: pass && distance <= this.options.snapTolerance,
+        ref: pass && distance <= this.options.snapRefTolerance,
       };
     });
     return result;
   }
 
-  calculateDistance(target, source) {
+  calculateDistance(source, target) {
     const result = {};
     result.center = {
       horizontal: (target.left + target.width / 2) - (source.left + source.width / 2), // 居中水平
@@ -127,10 +167,10 @@ export default class SnapRefManager {
     };
 
     result.outer = {
-      bottom: target.top - source.bottom, // 下
-      top: target.bottom - source.top, // 上
-      right: target.left - source.right, // 右
-      left: target.right - source.left, // 左
+      bottom: target.bottom - source.top, // 下
+      top: target.top - source.bottom, // 上
+      left: target.left - source.right, // 右
+      right: target.right - source.left, // 左
     };
 
     result.inner = {
