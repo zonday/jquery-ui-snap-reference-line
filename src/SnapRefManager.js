@@ -6,9 +6,17 @@ export default class SnapRefManager {
     this.elements = elements;
     this.snapCallbacks = snapCallbacks;
     this.options = options;
+    this.refElements = [];
+  }
+
+  pushRefElement(element) {
+    if (this.refElements.indexOf(element) !== -1) {
+      this.refElements.push(element);
+    }
   }
 
   snap(ui, source, axis) {
+    this.refElements = [];
     const refLines = [];
     const snapQueue = new SnapQueue();
     this.elements.forEach((target) => {
@@ -19,6 +27,7 @@ export default class SnapRefManager {
           const item = tolerance[name];
           if (item.ref) {
             refLines.push(this.makeRefLine(name, source, target));
+            this.pushRefElement(target);
           }
           if (item.snap && this.snapCallbacks[type]) {
             const callback = this.snapCallbacks[type][name];
