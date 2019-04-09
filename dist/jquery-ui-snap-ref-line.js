@@ -1,6 +1,6 @@
 
 /**
-@version 1.0.5-dev
+@version 1.0.6-dev
 */
       
 (function (global, factory) {
@@ -106,11 +106,19 @@
     this.elements = elements;
     this.snapCallbacks = snapCallbacks;
     this.options = options;
+    this.refElements = [];
+  };
+
+  SnapRefManager.prototype.pushRefElement = function pushRefElement (element) {
+    if (this.refElements.indexOf(element) !== -1) {
+      this.refElements.push(element);
+    }
   };
 
   SnapRefManager.prototype.snap = function snap (ui, source, axis) {
       var this$1 = this;
 
+    this.refElements = [];
     var refLines = [];
     var snapQueue = new SnapQueue();
     this.elements.forEach(function (target) {
@@ -121,6 +129,7 @@
           var item = tolerance[name];
           if (item.ref) {
             refLines.push(this$1.makeRefLine(name, source, target));
+            this$1.pushRefElement(target);
           }
           if (item.snap && this$1.snapCallbacks[type]) {
             var callback = this$1.snapCallbacks[type][name];
