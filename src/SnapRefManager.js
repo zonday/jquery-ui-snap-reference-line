@@ -10,7 +10,7 @@ export default class SnapRefManager {
   }
 
   pushRefElement(element) {
-    if (this.refElements.indexOf(element) !== -1) {
+    if (this.refElements.indexOf(element) === -1) {
       this.refElements.push(element);
     }
   }
