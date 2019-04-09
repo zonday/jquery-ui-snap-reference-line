@@ -1,6 +1,6 @@
 {
   "name": "@zonda/jquery-ui-snap-reference-line",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Jquery ui snap reference line",
   "main": "dist/jquery-ui-snap-ref-line.js",
   "scripts": {

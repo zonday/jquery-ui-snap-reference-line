@@ -1,6 +1,6 @@
 
 /**
-@version 1.0.6-dev
+@version 1.0.7-dev
 */
       
 (function (global, factory) {
@@ -110,7 +110,7 @@
   };
 
   SnapRefManager.prototype.pushRefElement = function pushRefElement (element) {
-    if (this.refElements.indexOf(element) !== -1) {
+    if (this.refElements.indexOf(element) === -1) {
       this.refElements.push(element);
     }
   };
@@ -419,117 +419,118 @@
     });
   }
 
-  $.ui.plugin.add('resizable', 'snapRef', {
-    start: function start() {
-      var inst = $(this).resizable('instance');
-      var inst_options = inst.options; if ( inst_options === void 0 ) inst_options = {};
-      var inst_options$1 = inst_options;
-      var snapRef = inst_options$1.snapRef;
-      var snapRefLineColor = inst_options$1.snapRefLineColor; if ( snapRefLineColor === void 0 ) snapRefLineColor = 'red';
-      var snapCanvasZIndex = inst_options$1.snapCanvasZIndex; if ( snapCanvasZIndex === void 0 ) snapCanvasZIndex = 10001;
-      var snapRefTolerance = inst_options$1.snapRefTolerance; if ( snapRefTolerance === void 0 ) snapRefTolerance = 30;
-      var snapTolerance = inst_options$1.snapTolerance; if ( snapTolerance === void 0 ) snapTolerance = 20;
+  if ($.ui && $.ui.resizable) {
+    $.ui.plugin.add('resizable', 'snapRef', {
+      start: function start() {
+        var inst = $(this).resizable('instance');
+        var inst_options = inst.options; if ( inst_options === void 0 ) inst_options = {};
+        var inst_options$1 = inst_options;
+        var snapRef = inst_options$1.snapRef;
+        var snapRefLineColor = inst_options$1.snapRefLineColor; if ( snapRefLineColor === void 0 ) snapRefLineColor = 'red';
+        var snapCanvasZIndex = inst_options$1.snapCanvasZIndex; if ( snapCanvasZIndex === void 0 ) snapCanvasZIndex = 10001;
+        var snapRefTolerance = inst_options$1.snapRefTolerance; if ( snapRefTolerance === void 0 ) snapRefTolerance = 30;
+        var snapTolerance = inst_options$1.snapTolerance; if ( snapTolerance === void 0 ) snapTolerance = 20;
 
-      inst.snapRefElements = [];
-      inst.refLineCanvas = new RefLineCanvas(this.parent(), {
-        lineColor:  snapRefLineColor,
-        zIndex: snapCanvasZIndex,
-      });
+        inst.snapRefElements = [];
+        inst.refLineCanvas = new RefLineCanvas(this.parent(), {
+          lineColor: snapRefLineColor,
+          zIndex: snapCanvasZIndex,
+        });
 
-      inst.margins = getMargins(inst.element);
+        inst.margins = getMargins(inst.element);
 
-      var elements = [];
+        var elements = [];
 
-      $(snapRef.constructor !== String ? (snapRef.items || ':data(ui-draggable)') : snapRef)
-        .each(function cb() {
-          if (this !== inst.element[0]) {
-            var $this = $(this);
+        $(snapRef.constructor !== String ? (snapRef.items || ':data(ui-draggable)') : snapRef)
+          .each(function cb() {
+            if (this !== inst.element[0]) {
+              var $this = $(this);
 
-            var margins = getMargins($this);
-            var top = toNum($this.css('top')) + margins.top;
-            var left = toNum($this.css('left')) + margins.left;
+              var margins = getMargins($this);
+              var top = toNum($this.css('top')) + margins.top;
+              var left = toNum($this.css('left')) + margins.left;
 
-            var width = $this.outerWidth();
-            var height = $this.outerHeight();
+              var width = $this.outerWidth();
+              var height = $this.outerHeight();
 
-            elements.push({
-              item: this,
-              width: width,
-              height: height,
-              top: top,
-              left: left,
-              bottom: top + height,
-              right: left + width,
-              offset: {
-                top: margins.top,
-                left: margins.left,
-              },
-            });
-        }
-      });
+              elements.push({
+                item: this,
+                width: width,
+                height: height,
+                top: top,
+                left: left,
+                bottom: top + height,
+                right: left + width,
+                offset: {
+                  top: margins.top,
+                  left: margins.left,
+                },
+              });
+            }
+          });
 
-      var snapCallbacks = {
-        center: {
-          horizontal: function horizontal(ui, s, t, axis) {
-            var left = s.left + s.width / 2 < t.left + t.width / 2;
-            if (includes(['nw', 'w', 'sw'], axis) && !left) {
-              ui.size.width = (s.right - (t.left + t.width / 2)) * 2;
-              ui.position.left = s.right - ui.size.width - s.offset.left;
-            } else if (includes(['ne', 'e', 'se'], axis) && left) {
-              ui.size.width = (t.left + t.width / 2 - s.left) * 2;
+        var snapCallbacks = {
+          center: {
+            horizontal: function horizontal(ui, s, t, axis) {
+              var left = s.left + s.width / 2 < t.left + t.width / 2;
+              if (includes(['nw', 'w', 'sw'], axis) && !left) {
+                ui.size.width = (s.right - (t.left + t.width / 2)) * 2;
+                ui.position.left = s.right - ui.size.width - s.offset.left;
+              } else if (includes(['ne', 'e', 'se'], axis) && left) {
+                ui.size.width = (t.left + t.width / 2 - s.left) * 2;
+              }
+            },
+            vertical: function vertical(ui, s, t, axis) {
+              var above = s.top + s.height / 2 < t.top + t.height / 2;
+              if (includes(['sw', 's', 'se'], axis) && above) {
+                ui.size.height = (t.top + t.height / 2 - s.top) * 2;
+              } else if (includes(['nw', 'n', 'ne'], axis) && !above) {
+                ui.size.height = (s.bottom - (t.top + t.height / 2)) * 2;
+                ui.position.top = s.bottom - ui.size.height - s.offset.top;
+              }
             }
           },
-          vertical: function vertical(ui, s, t, axis) {
-            var above = s.top + s.height / 2 < t.top + t.height / 2;
-            if (includes(['sw', 's', 'se'], axis) && above) {
-              ui.size.height = (t.top + t.height / 2 - s.top) * 2;
-            } else if (includes(['nw', 'n', 'ne'], axis) && !above) {
-              ui.size.height = (s.bottom - (t.top + t.height / 2)) * 2;
+          inner: {
+            top: function top(ui, s, t) {
+              ui.size.height = s.bottom - t.top;
               ui.position.top = s.bottom - ui.size.height - s.offset.top;
+            },
+            bottom: function bottom(ui, s, t) {
+              ui.size.height = t.bottom - s.top;
+            },
+            left: function left(ui, s, t) {
+              ui.size.width = s.right - t.left;
+              ui.position.left = s.right - ui.size.width - s.offset.left;
+            },
+            right: function right(ui, s, t) {
+              ui.size.width = t.right - s.left;
+            }
+          },
+          outer: {
+            top: function top(ui, s, t) {
+              ui.size.height = t.top - s.top;
+            },
+            bottom: function bottom(ui, s, t) {
+              ui.size.height = s.bottom - t.bottom;
+              ui.position.top = s.bottom - ui.size.height - s.offset.top;
+            },
+            left: function left(ui, s, t) {
+              ui.size.width = t.left - s.left;
+            },
+            right: function right(ui, s, t) {
+              ui.size.width = s.right - t.right;
+              ui.position.left = s.right - ui.size.width - s.offset.left;
             }
           }
-        },
-        inner: {
-          top: function top(ui, s, t) {
-            ui.size.height = s.bottom - t.top;
-            ui.position.top = s.bottom - ui.size.height - s.offset.top;
-          },
-          bottom: function bottom(ui, s, t) {
-            ui.size.height = t.bottom - s.top;
-          },
-          left: function left(ui, s, t) {
-            ui.size.width = s.right - t.left;
-            ui.position.left = s.right - ui.size.width - s.offset.left;
-          },
-          right: function right(ui, s, t) {
-            ui.size.width = t.right - s.left;
-          }
-        },
-        outer: {
-          top: function top(ui, s, t) {
-            ui.size.height = t.top - s.top;
-          },
-          bottom: function bottom(ui, s, t) {
-            ui.size.height = s.bottom - t.bottom;
-            ui.position.top = s.bottom - ui.size.height - s.offset.top;
-          },
-          left: function left(ui, s, t) {
-            ui.size.width = t.left - s.left;
-          },
-          right: function right(ui, s, t) {
-            ui.size.width = s.right - t.right;
-            ui.position.left = s.right - ui.size.width - s.offset.left;
-          }
-        }
-      };
+        };
 
-      inst.snapRefManager = new SnapRefManager(elements, snapCallbacks, {
-        snapRefTolerance: snapRefTolerance,
-        snapTolerance: snapTolerance,
-      });
-    },
+        inst.snapRefManager = new SnapRefManager(elements, snapCallbacks, {
+          snapRefTolerance: snapRefTolerance,
+          snapTolerance: snapTolerance,
+        });
+      },
 
-    resize: function resize(event, ui) {
+      resize: function resize(event, ui) {
         var inst = $(this).resizable('instance');
         var margins = inst.margins;
 
@@ -552,13 +553,14 @@
         }, inst.axis);
 
         inst.refLineCanvas.draw(lines);
-    },
+      },
 
-    stop: function stop() {
-      var inst = $(this).resizable('instance');
-      inst.refLineCanvas.destroy();
-      delete inst.refLineCanvas;
-    },
-  });
+      stop: function stop() {
+        var inst = $(this).resizable('instance');
+        inst.refLineCanvas.destroy();
+        delete inst.refLineCanvas;
+      },
+    });
+  }
 
 }));
